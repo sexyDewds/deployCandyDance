@@ -22,6 +22,12 @@ game.state.start('boot');
 },{"./states/boot":17,"./states/menu":18,"./states/play":19,"./states/preload":20}],2:[function(require,module,exports){
 'use strict';
 
+var Missile = require('./traps/missile');
+var Lava = require('./traps/lava');
+var Lazer = require('./traps/lazer');
+
+var blinkingTimer;
+
 var Char1 = function(game, x, y, frame) {
   Phaser.Sprite.call(this, game, x, y, 'char1', frame);
   this.scale.x = 2;
@@ -31,12 +37,15 @@ var Char1 = function(game, x, y, frame) {
   this.animations.play('walk');
   // this.animations.add('duck', [3], 10, true);
 
-
-  this.flapSound = this.game.add.audio('flap');
-
   this.name = 'char1';
   this.alive = false;
   this.health = 3;
+  this.isInvincible = false;
+
+  this.jumpSound = this.game.add.audio('jump');
+  this.lazerSound = this.game.add.audio('lazer_hit');
+  this.lavaSound = this.game.add.audio('lava_hit');
+  this.missileSound = this.game.add.audio('missile_hit');
 
   // enable physics on the char1
   // and disable gravity on the char1
@@ -45,10 +54,7 @@ var Char1 = function(game, x, y, frame) {
   this.body.allowGravity = true;
   this.body.collideWorldBounds = true;
 
-
   this.events.onKilled.add(this.onKilled, this);
-
-
 
 };
 
@@ -56,8 +62,7 @@ Char1.prototype = Object.create(Phaser.Sprite.prototype);
 Char1.prototype.constructor = Char1;
 
 Char1.prototype.update = function() {
-  // check to see if our angle is less than 90
-  // if it is rotate the Char1 towards the ground by 2.5 degrees
+
   if(!this.alive) {
     this.body.velocity.x = 0;
   }
@@ -66,12 +71,13 @@ Char1.prototype.update = function() {
 Char1.prototype.moveUp = function() {
   if(!!this.alive && this.body.touching.down) {
     this.body.velocity.y = -600;
+    this.jumpSound.play();
   }
 };
 
 Char1.prototype.moveLeft = function() {
   if (!!this.alive) {
-    this.body.velocity.x = -200;
+    this.body.velocity.x = -250;
   }
 };
 
@@ -90,17 +96,52 @@ Char1.prototype.moveDown = function() {
 Char1.prototype.revived = function() {
 };
 
-Char1.prototype.takeDamage = function() {
+Char1.prototype.takeDamage = function(enemy) {
+  if (enemy instanceof Missile) {
+    if (enemy.key === "missile") {
+      this.missileSound.play();
+    } else {
+      //add meteor hit sound
+    }
+  }
+
+  if (enemy instanceof Lava) {
+    this.lavaSound.play();
+  }
+
+  if (enemy instanceof Lazer) {
+    this.lazerSound.play();
+  }
+
   this.health--;
+
+  this.isInvincable = true;
+  blinkingTimer = this.game.time.events.loop(Phaser.Timer.SECOND * 0.2, this.blinking, this);
+  blinkingTimer.timer.start();
+  this.game.time.events.add(Phaser.Timer.SECOND * 3, this.setNotInvincible, this);
 };
 
 Char1.prototype.getHealth = function() {
   return this.health;
-}
+};
 
 Char1.prototype.gainHealth = function() {
   if (this.health < 3)
     this.health++;
+}
+
+Char1.prototype.blinking = function() {
+  this.tweenTint(this, 0, 0xffffff, 100);
+};
+
+Char1.prototype.setNotInvincible = function() {
+  console.log("inside set to not invincible");
+  this.isInvincible = false;
+  blinkingTimer.timer.stop();
+};
+
+Char1.prototype.setInvincible = function() {
+  this.isInvincible = true;
 }
 
 Char1.prototype.onKilled = function() {
@@ -113,9 +154,25 @@ Char1.prototype.onKilled = function() {
   console.log('alive:', this.alive);
 };
 
+Char1.prototype.tweenTint = function(obj, startColor, endColor, time) {
+  // create an object to tween with our step value at 0
+  var colorBlend = {step: 0};
+  // create the tween on this object and tween its step property to 100
+  var colorTween = this.game.add.tween(colorBlend).to({step: 100}, time);
+  // run the interpolateColor function every time the tween updates, feeding it the
+  // updated value of our tween each time, and set the result as our tint
+  colorTween.onUpdateCallback(function() {
+    obj.tint = Phaser.Color.interpolateColor(startColor, endColor, 100, colorBlend.step);
+  });        // set the object to the start color straight away
+  obj.tint = startColor;            // start the tween
+  colorTween.start();
+}
+
+
+
 module.exports = Char1;
 
-},{}],3:[function(require,module,exports){
+},{"./traps/lava":13,"./traps/lazer":14,"./traps/missile":16}],3:[function(require,module,exports){
 'use strict';
 
 var Enemy = function(game, x, y, frame) {
@@ -129,6 +186,7 @@ var Enemy = function(game, x, y, frame) {
   // this.animations.add('angry', [4,5,6], 10, true);
 
   this.name = 'enemy';
+  this.alive = false;
 
   // enable physics on the enemy
   // and disable gravity on the enemy
@@ -136,6 +194,8 @@ var Enemy = function(game, x, y, frame) {
   this.game.physics.arcade.enableBody(this);
   this.body.allowGravity = false;
   this.body.collideWorldBounds = true;
+
+  this.events.onKilled.add(this.onKilled, this);
 
 };
 
@@ -148,22 +208,38 @@ Enemy.prototype.update = function() {
 };
 
 Enemy.prototype.moveUp = function() {
+  if (!!this.alive) {
     this.body.velocity.y = -100;
+  }
 };
 
 Enemy.prototype.moveLeft = function() {
+  if (!!this.alive) {
     this.body.velocity.x = -100;
+  }
 };
 
 Enemy.prototype.moveRight = function() {
+  if (!!this.alive) {
     this.body.velocity.x = 100;
+  }
 };
 
 Enemy.prototype.moveDown = function() {
+  if (!!this.alive) {
     this.body.velocity.y = 100;
+  }
 };
 
 Enemy.prototype.revived = function() {
+};
+
+Enemy.prototype.onKilled = function() {
+  this.exists = true;
+  this.visible = true;
+  this.body.velocity.y = 0;
+  this.body.velocity.x = 0;
+  // this.animations.stop();
 };
 
 
@@ -180,10 +256,8 @@ var FirstAid = function(game, x, y, frame) {
   this.anchor.setTo(0.5, 0.5);
   this.game.physics.arcade.enableBody(this);
   this.body.allowGravity = false;
-  this.body.collideWorldBounds = false;
+  this.body.collideWorldBounds = true;
   this.body.immovable = true;
-
-  // this.events.onKilled.add(this.onKilled, this);
 
 };
 
@@ -539,13 +613,14 @@ var Lava = function(game, x, y, frame) {
   this.scale.y = 4;
   this.frame = 21;
 
-  // this.anchor.setTo(0.5, 0);	//tip of the sprite
   this.game.physics.arcade.enableBody(this);
-  
+
+  this.lavaFlowAudio = this.game.add.audio('lava_flow');
+
   this.body.velocity.x = -200;
   this.body.allowGravity = false;
   this.body.immovable = true;
-  
+
 };
 
 Lava.prototype = Object.create(Phaser.Sprite.prototype);
@@ -553,19 +628,21 @@ Lava.prototype.constructor = Lava;
 
 Lava.prototype.update = function() {
   // write your prefab's specific update code here
-  
 };
 
 Lava.prototype.stop = function() {
 	this.body.velocity.x = 0;
 	this.body.velocity.y = 0;
+  this.lavaFlowAudio.stop();
 }
 
 Lava.prototype.reset = function() {
+  this.lavaFlowAudio.play();
 	this.body.x = this.game.width + this.body.width;
 }
 
 module.exports = Lava;
+
 },{}],14:[function(require,module,exports){
 'use strict';
 
@@ -574,6 +651,9 @@ var Lazer = function(game, x, y, frame) {
   this.anchor.setTo(0.5, 0.5);
   this.scale.y = 50;
   this.scale.x = 2;
+
+  this.lazerSound = this.game.add.audio('lazer_shot');
+  this.lazerSound.play();
 
   // enable physics on the lazer
   this.game.physics.arcade.enableBody(this);
@@ -608,8 +688,10 @@ Lazer.prototype.activate = function() {
   this.count++
   if (this.count % 2 == 0 ) {
     this.appear();
+    this.lazerSound.play();
   } else {
     this.disappear();
+    this.lazerSound.stop();
   }
 };
 
@@ -646,10 +728,13 @@ var MeteorGroup = function(game, parent) {
 
   Phaser.Group.call(this, game, parent);
 
+  this.meteorSound = this.game.add.audio('meteor_sound');
+  this.meteorSound.play();
+
   var gameWidth = this.game.width;
-  this.rightMeteor = new Missile(this.game, 0, 0, 0, "meteor");
-  this.add(this.rightMeteor);
-  this.rightMeteor.smoothed = false;
+  this.meteor = new Missile(this.game, 0, 0, 0, "meteor");
+  this.add(this.meteor);
+  this.meteor.smoothed = false; // set all doesn't work
   this.setAll('sprite.smoothed', false);
   this.setAll('sprite.scale.y',4);
   this.setAll('sprite.scale.x', 4);
@@ -661,25 +746,24 @@ MeteorGroup.prototype = Object.create(Phaser.Group.prototype);
 MeteorGroup.prototype.constructor = MeteorGroup;
 
 MeteorGroup.prototype.update = function() {
-    this.game.physics.arcade.collide(this.rightMeteor, this.ground);
 };
 
 
 MeteorGroup.prototype.reset = function(x, y) {
-  this.rightMeteor.reset(x, 0);
+  this.meteorSound.play();
+  this.meteor.reset(x, 0);
   this.x = x;
   this.y = 0;
-  
+
   var gameWidth = this.game.width;
   var offSet = x%gameWidth/3 > 0 ? x%gameWidth/3 : 0;
   this.setAll('body.velocity.x', -150 - offSet);    // the futher right, bring it back
   this.setAll('body.velocity.y', 150 + offSet);
-  this.hasScored = false;
-  this.exists = true;
 };
 
 
 MeteorGroup.prototype.stop = function() {
+  this.meteorSound.stop();
   this.setAll('body.velocity.x', 0);
   this.setAll('body.velocity.y', 0);
 };
@@ -695,43 +779,38 @@ var Missile = function(game, x, y, frame, type) {
   _type = type;
   if (type === "missile") {
     Phaser.Sprite.call(this, game, x, y, 'missile', frame);
+    this.game.physics.arcade.enableBody(this);
     this.scale.x = 2;
     this.scale.y = 2;
     this.angle += 180;
+    this.missileSound = this.game.add.audio('missile_launch');
   }
-  else {
+  else {  // this should be/can only be meteor
     Phaser.Sprite.call(this, game, x, y, 'meteor', frame);
+    this.game.physics.arcade.enableBody(this);
     this.scale.x = 8;
     this.scale.y = 8;
     this.animations.add('meteorFlames', [0, 1, 2], 3, true);
     this.animations.play('meteorFlames');
+    this.body.immovable = true;
+
   }
   this.anchor.setTo(0.5, 0.5);
-
-
-  // this.alive = false;
-  // this.onGround = false;
-
-  this.game.physics.arcade.enableBody(this);
   this.body.allowGravity = false;
   this.body.collideWorldBounds = false;
-
-  // this.events.onKilled.add(this.onKilled, this);
-
 };
 
 Missile.prototype = Object.create(Phaser.Sprite.prototype);
 Missile.prototype.constructor = Missile;
 
 Missile.prototype.update = function() {
-
-
 };
 
 Missile.prototype.shoot = function() {
     if (_type === "missile") {
       this.body.velocity.x = -500;
       this.body.velocity.y = 0;
+      this.missileSound.play();
     } else {
       this.body.velocity.x = -300;
       this.body.velocity.y = -75;
@@ -773,6 +852,12 @@ Menu.prototype = {
     this.background = this.game.add.tileSprite(0,-42,840,420,'background');
 
     this.background.smoothed = false;
+
+    this.music = this.game.add.audio('menu_music');
+    this.music.play();
+
+    this.menuClick = this.game.add.audio('menu_whoosh');
+
 
     // add the ground sprite as a tile
     // and start scrolling in the negative x direction
@@ -833,6 +918,8 @@ Menu.prototype = {
   startClick: function() {
     // start button click handler
     // start the 'play' state
+    this.music.stop();
+    this.menuClick.play();
     this.game.state.start('play');
   }
 };
@@ -882,6 +969,7 @@ var DEBUFFS = {
     }
 };
 
+const SCALE_SIZE = 2;
 
 function Play() {
 }
@@ -893,22 +981,22 @@ Play.prototype = {
     // give our world an initial gravity of 1200
     this.game.physics.arcade.gravity.y = 1200;
 
+    //load audio
+    this.actionMusic = this.game.add.audio('action_music');
+    this.instructionMusic = this.game.add.audio('menu_music');
+    this.instructionMusic.play();
+    this.gameOverSound = this.game.add.audio('game_over_sound');
+
     // add the background sprite
     this.background = this.game.add.tileSprite(0,-42,840,420,'background');
 
     //initialize the health bars
     this.healthBar1 = this.game.add.sprite(0, 0, 'heart');
-    this.healthBar1.scale.x = 2;
-    this.healthBar1.scale.y = 2;
-    this.healthBar1.smoothed = false;
+    this.scaleSpriteBySize(this.healthBar1, SCALE_SIZE);
     this.healthBar2 = this.game.add.sprite(50, 0, 'heart');
-    this.healthBar2.scale.x = 2;
-    this.healthBar2.scale.y = 2;
-    this.healthBar2.smoothed = false;
+    this.scaleSpriteBySize(this.healthBar2, SCALE_SIZE);
     this.healthBar3 = this.game.add.sprite(100, 0, 'heart');
-    this.healthBar3.scale.x = 2;
-    this.healthBar3.scale.y = 2;
-    this.healthBar3.smoothed = false;
+    this.scaleSpriteBySize(this.healthBar3, SCALE_SIZE);
 
     // create and add a group to hold our pipeGroup prefabs
     this.pipes = this.game.add.group();
@@ -968,30 +1056,24 @@ Play.prototype = {
 
     //initialize the buttons
     this.lazerButton = this.game.add.sprite(this.game.width - 50, 0, 'buttons', 0);
-    this.lazerButton.scale.x = 2;
-    this.lazerButton.scale.y = 2;
-    this.lazerButton.smoothed = false;
+    this.scaleSpriteBySize(this.lazerButton, SCALE_SIZE);
     this.swapKeyButton = this.game.add.sprite(this.game.width - 100, 0, 'buttons', 2);
-    this.swapKeyButton.scale.x = 2;
-    this.swapKeyButton.scale.y = 2;
-    this.swapKeyButton.smoothed = false;
+    this.scaleSpriteBySize(this.swapKeyButton, SCALE_SIZE);
     this.missileButton = this.game.add.sprite(this.game.width - 150, 0, 'buttons', 4);
-    this.missileButton.scale.x = 2;
-    this.missileButton.scale.y = 2;
-    this.missileButton.smoothed = false;
+    this.scaleSpriteBySize(this.missileButton, SCALE_SIZE);
     this.meteorButton = this.game.add.sprite(this.game.width - 200, 0, 'buttons', 6);
-    this.meteorButton.scale.x = 2;
-    this.meteorButton.scale.y = 2;
-    this.meteorButton.smoothed = false;
+    this.scaleSpriteBySize(this.meteorButton, SCALE_SIZE);
   },
   update: function() {
     // enable collisions between the char1 and the ground
     this.game.physics.arcade.collide(this.char1, this.ground);
     this.game.physics.arcade.collide(this.meteors, this.ground);
+    if (!this.char1.isInvincible){
+      this.game.physics.arcade.collide(this.char1, this.lava, this.damageHandler, null, this);
+      this.game.physics.arcade.collide(this.char1, this.missile, this.damageHandler, null, this);
+      this.game.physics.arcade.collide(this.char1, this.lazer, this.lazerHandler, null, this);
+    }
     this.game.physics.arcade.overlap(this.char1, this.firstAidKit, this.healHandler, null, this);
-    this.game.physics.arcade.collide(this.char1, this.lazer, this.lazerHandler, null, this);
-    this.game.physics.arcade.collide(this.char1, this.missile, this.damageHandler, null, this);
-    this.game.physics.arcade.collide(this.char1, this.lava, this.deathHandler, null, this);
 
     if(!this.gameover) {
       // enable collisions between the char1 and each group in the pipes group
@@ -1059,8 +1141,11 @@ Play.prototype = {
 
   startGame: function() {
     if(!this.char1.alive && !this.gameover) {
+      this.instructionMusic.stop();
+      this.actionMusic.play();
       this.char1.body.allowGravity = true;
       this.char1.alive = true;
+      this.enemy.alive = true;
       // add a timer
       var pipeRandInt = this.game.rnd.integerInRange(5, 15);
       this.pipeGenerator = this.game.time.events.loop(Phaser.Timer.SECOND * pipeRandInt, this.generatePipes, this);
@@ -1092,10 +1177,11 @@ Play.prototype = {
   },
   damageHandler: function(char1, enemy) {
     this.updateHealth('DOWN');
-    this.char1.takeDamage();
-    enemy.kill();
-
-    //TODO: Damage animation / sprite when taking damage
+    this.char1.setInvincible();
+    this.char1.takeDamage(enemy);
+    if (enemy instanceof Missile && enemy.key === "missile") {
+      enemy.kill();
+    }
 
     if (this.char1.getHealth() <= 0) {
       this.deathHandler();
@@ -1132,16 +1218,21 @@ Play.prototype = {
   },
   deathHandler: function(char1, enemy) {
     if(!this.gameover) {
-      this.sounds.groundHitSound.play();
+      this.gameOverSound.play();
       this.scoreboard = new Scoreboard(this.game);
       this.game.add.existing(this.scoreboard);
       this.scoreboard.show(this.score);
       this.gameover = true;
       this.char1.kill();
+      this.enemy.kill();
       this.pipes.callAll('stop');
       this.rewards.callAll('stop');
       this.platforms.callAll('stop');
       this.lava.stop();
+      if (this.lazer) {
+        this.lazer.kill();
+      }
+      this.actionMusic.stop();
       this.pipeGenerator.timer.stop();
       this.ground.stopScroll();
       DEBUFFS.lazerFireEvent.timer = DEBUFFS.lazerFireEvent.reset;
@@ -1160,7 +1251,7 @@ Play.prototype = {
     pipeGroup.reset(this.game.width, pipeY);
   },
   generateLazer: function() {
-    if (!this.lazer || this.game.time.totalElapsedSeconds() > DEBUFFS.lazerFireEvent.timer) {
+    if (!this.gameover && (!this.lazer || this.game.time.totalElapsedSeconds() > DEBUFFS.lazerFireEvent.timer) && this.enemy.alive) {
       console.log(this.game.time.totalElapsedSeconds());
       var lazerY = this.game.rnd.integerInRange(0, 500);
       // create and add a new lazer object
@@ -1171,14 +1262,16 @@ Play.prototype = {
     }
   },
   generateMissile: function() {
-    if (!this.missile || this.game.time.totalElapsedSeconds() > DEBUFFS.missileFireEvent.timer) {
+    if (!this.gameover && (!this.missile || this.game.time.totalElapsedSeconds() > DEBUFFS.missileFireEvent.timer) && this.enemy.alive) {
         console.log("this total for missile: " + DEBUFFS.missileFireEvent.timer);
         var missileY = this.enemy.y;
         var missleX = this.enemy.x;
 
         this.missile = new Missile(this.game, missleX, missileY, 6, "missile");
         this.game.add.existing(this.missile);
+
         this.missile.shoot();
+
         this.firstAidNum++;
         this.missileButton.filters = [this.gray]
         DEBUFFS.missileFireEvent.timer = 10 +  this.game.time.totalElapsedSeconds();
@@ -1201,7 +1294,7 @@ Play.prototype = {
     rewardGroup.reset(this.game.width, rewardY);
   },
   generateMeteors: function() {
-    if (this.game.time.totalElapsedSeconds() > DEBUFFS.meteorsFireEvent.timer) {
+    if (!this.gameover && (this.game.time.totalElapsedSeconds() > DEBUFFS.meteorsFireEvent.timer) && this.enemy.alive) {
     var meteorsX = this.game.rnd.integerInRange(this.game.width/3, this.game.width/2);
     var meteorsGroup = this.meteors.getFirstExists(false);
     if (!meteorsGroup) {
@@ -1213,7 +1306,7 @@ Play.prototype = {
   }
   },
   changePlayerControl: function(){
-    if (this.game.time.totalElapsedSeconds() > DEBUFFS.swapPlayerControlEvent.timer){
+    if (!this.gameover && (this.game.time.totalElapsedSeconds() > DEBUFFS.swapPlayerControlEvent.timer) && this.enemy.alive) {
       DEBUFFS.swapPlayerControlEvent.isNormal = !DEBUFFS.swapPlayerControlEvent.isNormal;
       this.swapKeyListeners(DEBUFFS.swapPlayerControlEvent.isNormal);
       DEBUFFS.swapPlayerControlEvent.isNormal = !DEBUFFS.swapPlayerControlEvent.isNormal;
@@ -1224,22 +1317,22 @@ Play.prototype = {
   },
   swapKeyListeners: function(bool) {
     console.log(bool);
-  if (bool) {
-    this.upKey.onDown.remove(this.char1.moveRight,this.char1);
-    this.leftKey.onDown.remove(this.char1.moveUp,this.char1);
-    this.rightKey.onDown.remove(this.char1.moveLeft,this.char1);
-    this.upKey.onDown.add(this.char1.moveUp, this.char1);
-    this.leftKey.onDown.add(this.char1.moveLeft, this.char1);
-    this.rightKey.onDown.add(this.char1.moveRight, this.char1);
-  } else {
-    this.upKey.onDown.remove(this.char1.moveUp,this.char1);
-    this.leftKey.onDown.remove(this.char1.moveLeft,this.char1);
-    this.rightKey.onDown.remove(this.char1.moveRight,this.char1);
-    this.upKey.onDown.add(this.char1.moveRight, this.char1);
-    this.leftKey.onDown.add(this.char1.moveUp, this.char1);
-    this.rightKey.onDown.add(this.char1.moveLeft, this.char1);
-  }
-},
+    if (bool) {
+      this.upKey.onDown.remove(this.char1.moveRight,this.char1);
+      this.leftKey.onDown.remove(this.char1.moveUp,this.char1);
+      this.rightKey.onDown.remove(this.char1.moveLeft,this.char1);
+      this.upKey.onDown.add(this.char1.moveUp, this.char1);
+      this.leftKey.onDown.add(this.char1.moveLeft, this.char1);
+      this.rightKey.onDown.add(this.char1.moveRight, this.char1);
+    } else {
+      this.upKey.onDown.remove(this.char1.moveUp,this.char1);
+      this.leftKey.onDown.remove(this.char1.moveLeft,this.char1);
+      this.rightKey.onDown.remove(this.char1.moveRight,this.char1);
+      this.upKey.onDown.add(this.char1.moveRight, this.char1);
+      this.leftKey.onDown.add(this.char1.moveUp, this.char1);
+      this.rightKey.onDown.add(this.char1.moveLeft, this.char1);
+    }
+  },
   setUpKeyListeners: function() {
 
     this.spaceKey = this.game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
@@ -1284,8 +1377,12 @@ Play.prototype = {
 
     this.changePlayerControlKey = this.game.input.keyboard.addKey(Phaser.Keyboard.THREE);
     this.changePlayerControlKey.onDown.add(this.changePlayerControl, this);
+  },
+  scaleSpriteBySize: function(oSprite, iSize) {
+    oSprite.scale.x = iSize;
+    oSprite.scale.y = iSize;
+    oSprite.smoothed = false;
   }
-
 };
 
 module.exports = Play;
@@ -1325,7 +1422,6 @@ Preload.prototype = {
     this.load.spritesheet('missile', 'assets/projectiles.png', 21, 21, 21);
     this.load.spritesheet('buttons', 'assets/buttons.png', 21, 21, 8);
 
-    //TODO: UPDATE INSTRUCTIONS
     this.load.image('instructions', 'assets/instructions2.png');
     this.load.image('getReady', 'assets/get-ready.png');
 
@@ -1337,11 +1433,20 @@ Preload.prototype = {
 
     this.load.script('gray', 'https://cdn.rawgit.com/photonstorm/phaser/master/filters/Gray.js');
 
-    this.load.audio('flap', 'assets/flap.wav');
-    this.load.audio('pipeHit', 'assets/pipe-hit.wav');
-    this.load.audio('groundHit', 'assets/ground-hit.wav');
+    this.load.audio('menu_music', 'assets/Happy_Music.wav');
+    this.load.audio('action_music', 'assets/action_music.wav');
+    this.load.audio('lazer_shot', 'assets/laser_shot.wav');
+    this.load.audio('lazer_hit', 'assets/Laser_Hit.wav');
+    this.load.audio('lava_flow', 'assets/lava_flow.wav');
+    this.load.audio('lava_hit', 'assets/lava_hit.wav');
+    this.load.audio('missile_launch', 'assets/missile_launch.wav');
+    this.load.audio('missile_hit', 'assets/Missile_Player.wav');
+    this.load.audio('jump', 'assets/flap.wav');
     this.load.audio('score', 'assets/score.wav');
     this.load.audio('ouch', 'assets/ouch.wav');
+    this.load.audio('menu_whoosh', 'assets/menu_whoosh_up.wav');
+    this.load.audio('meteor_sound', 'assets/Missile_Explosion.wav');
+    this.load.audio('game_over_sound', 'assets/smb_mariodie.wav');
 
     this.load.bitmapFont('flappyfont', 'assets/fonts/flappyfont/flappyfont.png', 'assets/fonts/flappyfont/flappyfont.fnt');
 
