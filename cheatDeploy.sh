@@ -8,6 +8,6 @@ if [[ $# -eq 0 ]] ; then
 grunt build;
 cp -rf dist/ ../deployCandyDance/dist/
 ls -la ../deployCandyDance/dist/
-git --git-dir=$HOME/git/deployCandyDance/.git add .
-git --git-dir=$HOME/git/deployCandyDance/.git commit -m "$1"
-git --git-dir=$HOME/git/deployCandyDance/.git push heroku master
+git --git-dir=../deployCandyDance/.git add .
+git --git-dir=../deployCandyDance/.git commit -m "$1"
+git --git-dir=../deployCandyDance/.git push heroku master
