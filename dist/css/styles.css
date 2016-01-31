@@ -5,6 +5,7 @@ body {
 #candy-ritual {
   border: 2px solid white;
   width: 840px;
+  top: 50%;
   margin-left: auto;
   margin-right: auto;
   cursor: pointer;

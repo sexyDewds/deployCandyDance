@@ -1,9 +1,10 @@
-#!/bin/bash
+#/bin/bash
 
 if [[ $# -eq 0 ]] ; then
-      echo 'usage: ./cheatDeploy.sh <commit message>'
-          exit 0
-        fi
+  echo 'make sure /deployCandyDance repo is in the same parent directory as this'
+  echo 'usage: ./cheatDeploy.sh <commit message>'
+  exit 0
+fi
 
 grunt build;
 cp -rf dist/ ../deployCandyDance/dist/
