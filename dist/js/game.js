@@ -615,7 +615,7 @@ var Lava = function(game, x, y, frame) {
 
   this.game.physics.arcade.enableBody(this);
 
-  this.lavaFlowAudio = this.game.add.audio('lava_flow');
+  // this.lavaFlowAudio = this.game.add.audio('lava_flow');
 
   this.body.velocity.x = -200;
   this.body.allowGravity = false;
@@ -633,11 +633,11 @@ Lava.prototype.update = function() {
 Lava.prototype.stop = function() {
 	this.body.velocity.x = 0;
 	this.body.velocity.y = 0;
-  this.lavaFlowAudio.stop();
+  // this.lavaFlowAudio.stop();
 }
 
 Lava.prototype.reset = function() {
-  this.lavaFlowAudio.play();
+  // this.lavaFlowAudio.play();
 	this.body.x = this.game.width + this.body.width;
 }
 
@@ -986,6 +986,8 @@ Play.prototype = {
     this.instructionMusic = this.game.add.audio('menu_music');
     this.instructionMusic.play();
     this.gameOverSound = this.game.add.audio('game_over_sound');
+    this.swapControlSound = this.game.add.audio('swap_control_sound');
+    this.scoreSound = this.game.add.audio('score');
 
     // add the background sprite
     this.background = this.game.add.tileSprite(0,-42,840,420,'background');
@@ -1047,12 +1049,6 @@ Play.prototype = {
     this.gray = this.game.add.filter('Gray');
 
     Phaser.Canvas.setSmoothingEnabled(this, true);
-
-    this.sounds = {
-      pipeHitSound: this.game.add.audio('pipeHit'),
-      groundHitSound: this.game.add.audio('groundHit'),
-      scoreSound: this.game.add.audio('score')
-    }
 
     //initialize the buttons
     this.lazerButton = this.game.add.sprite(this.game.width - 50, 0, 'buttons', 0);
@@ -1166,7 +1162,8 @@ Play.prototype = {
   checkScore: function(char1, reward) {
       this.score++;
       this.scoreText.setText(this.score.toString());
-      this.sounds.scoreSound.play();
+      this.scoreSound.play();
+      this.scoreSound.volume = 0.4;
       reward.kill();
   },
   healHandler: function(char1, AidKit) {
@@ -1307,6 +1304,8 @@ Play.prototype = {
   },
   changePlayerControl: function(){
     if (!this.gameover && (this.game.time.totalElapsedSeconds() > DEBUFFS.swapPlayerControlEvent.timer) && this.enemy.alive) {
+      this.swapControlSound.play();
+      this.swapControlSound.volume = 2;
       DEBUFFS.swapPlayerControlEvent.isNormal = !DEBUFFS.swapPlayerControlEvent.isNormal;
       this.swapKeyListeners(DEBUFFS.swapPlayerControlEvent.isNormal);
       DEBUFFS.swapPlayerControlEvent.isNormal = !DEBUFFS.swapPlayerControlEvent.isNormal;
@@ -1405,10 +1404,8 @@ Preload.prototype = {
     this.load.image('background', 'assets/background.png');
     this.load.spritesheet('ground', 'assets/ground.png', 21,21,22);
 
-    //TODO: UPDATE TITLE
     this.load.image('title', 'assets/splash.png');
 
-    //TODO: UPDATE SPRITES
     this.load.spritesheet('lazer', 'assets/projectiles.png', 21,21,21);
     this.load.spritesheet('char1', 'assets/char1.png', 21,21,11);
     this.load.spritesheet('enemy', 'assets/enemy.png', 21,21,11);
@@ -1447,6 +1444,7 @@ Preload.prototype = {
     this.load.audio('menu_whoosh', 'assets/menu_whoosh_up.wav');
     this.load.audio('meteor_sound', 'assets/Missile_Explosion.wav');
     this.load.audio('game_over_sound', 'assets/smb_mariodie.wav');
+    this.load.audio('swap_control_sound', 'assets/swapPlayer.wav');
 
     this.load.bitmapFont('flappyfont', 'assets/fonts/flappyfont/flappyfont.png', 'assets/fonts/flappyfont/flappyfont.fnt');
 
