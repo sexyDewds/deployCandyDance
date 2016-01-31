@@ -19,7 +19,7 @@ game.state.add('preload', PreloadState);
 game.state.start('boot');
 
   
-},{"./states/boot":17,"./states/menu":18,"./states/play":19,"./states/preload":20}],2:[function(require,module,exports){
+},{"./states/boot":18,"./states/menu":19,"./states/play":20,"./states/preload":21}],2:[function(require,module,exports){
 'use strict';
 
 var Missile = require('./traps/missile');
@@ -172,7 +172,7 @@ Char1.prototype.tweenTint = function(obj, startColor, endColor, time) {
 
 module.exports = Char1;
 
-},{"./traps/lava":13,"./traps/lazer":14,"./traps/missile":16}],3:[function(require,module,exports){
+},{"./traps/lava":14,"./traps/lazer":15,"./traps/missile":17}],3:[function(require,module,exports){
 'use strict';
 
 var Enemy = function(game, x, y, frame) {
@@ -209,25 +209,25 @@ Enemy.prototype.update = function() {
 
 Enemy.prototype.moveUp = function() {
   if (!!this.alive) {
-    this.body.velocity.y = -100;
+    this.y -= 1;
   }
 };
 
 Enemy.prototype.moveLeft = function() {
   if (!!this.alive) {
-    this.body.velocity.x = -100;
+    this.x -= 1;
   }
 };
 
 Enemy.prototype.moveRight = function() {
   if (!!this.alive) {
-    this.body.velocity.x = 100;
+    this.x += 1;
   }
 };
 
 Enemy.prototype.moveDown = function() {
   if (!!this.alive) {
-    this.body.velocity.y = 100;
+    this.y += 1;
   }
 };
 
@@ -307,6 +307,66 @@ module.exports = Ground;
 },{}],6:[function(require,module,exports){
 'use strict';
 
+var blinkingTimer;
+
+var Indicator = function(game, x, y, frame) {
+  Phaser.Sprite.call(this, game, x, y, 'arrows', frame);
+  this.anchor.setTo(0.5, 0.5);
+  this.scale.y = 4;
+  this.scale.x = 4;
+  this.smoothed = false;
+  this.animations.add('rotates', [4, 5, 6, 7], 4, true);
+  this.animations.play('rotates');
+
+
+  // enable physics on the lazer
+  this.game.physics.arcade.enableBody(this);
+  this.body.allowGravity = false;
+  this.body.immovable = true;
+  this.alpha = 0;
+};
+
+Indicator.prototype = Object.create(Phaser.Sprite.prototype);
+Indicator.prototype.constructor = Indicator;
+
+Indicator.prototype.update = function() {
+};
+
+Indicator.prototype.blinking = function() {
+  this.tweenTint(this, 0, 0xffffff, 100);
+};
+
+Indicator.prototype.appear = function() {
+  this.game.add.tween(this).to({alpha: 1}, 0.1, "Linear", true);
+  blinkingTimer = this.game.time.events.loop(Phaser.Timer.SECOND * 0.2, this.blinking, this);
+  blinkingTimer.timer.start();
+};
+
+Indicator.prototype.disappear = function() {
+  this.game.add.tween(this).to({alpha: 0}, 0.1, "Linear", true);
+  blinkingTimer.timer.stop();
+};
+
+Indicator.prototype.tweenTint = function(obj, startColor, endColor, time) {
+  // create an object to tween with our step value at 0
+  var colorBlend = {step: 0};
+  // create the tween on this object and tween its step property to 100
+  var colorTween = this.game.add.tween(colorBlend).to({step: 100}, time);
+  // run the interpolateColor function every time the tween updates, feeding it the
+  // updated value of our tween each time, and set the result as our tint
+  colorTween.onUpdateCallback(function() {
+    obj.tint = Phaser.Color.interpolateColor(startColor, endColor, 100, colorBlend.step);
+  });        // set the object to the start color straight away
+  obj.tint = startColor;            // start the tween
+  colorTween.start();
+}
+
+
+module.exports = Indicator;
+
+},{}],7:[function(require,module,exports){
+'use strict';
+
 var Pipe = function(game, x, y, frame) {
   Phaser.Sprite.call(this, game, x, y, 'pipe', frame);
   this.anchor.setTo(0.5, 0.5);
@@ -326,7 +386,7 @@ Pipe.prototype.update = function() {
 };
 
 module.exports = Pipe;
-},{}],7:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 'use strict';
 
 var Pipe = require('./pipe');
@@ -374,7 +434,7 @@ PipeGroup.prototype.stop = function() {
 };
 
 module.exports = PipeGroup;
-},{"./pipe":6}],8:[function(require,module,exports){
+},{"./pipe":7}],9:[function(require,module,exports){
 'use strict';
 
 var Platform = function(game, x, y, frame) {
@@ -397,7 +457,7 @@ Platform.prototype.update = function() {
 
 module.exports = Platform;
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 'use strict';
 
 var Platform = require('./platform');
@@ -437,7 +497,7 @@ PlatformGroup.prototype.stop = function() {
 
 module.exports = PlatformGroup;
 
-},{"./platform":8}],10:[function(require,module,exports){
+},{"./platform":9}],11:[function(require,module,exports){
 'use strict';
 
 var Reward = function(game, x, y, frame) {
@@ -462,7 +522,7 @@ Reward.prototype.update = function() {
 
 module.exports = Reward;
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 'use strict';
 
 var Reward = require('./reward');
@@ -500,7 +560,7 @@ RewardGroup.prototype.stop = function() {
 
 module.exports = RewardGroup;
 
-},{"./reward":10}],12:[function(require,module,exports){
+},{"./reward":11}],13:[function(require,module,exports){
 'use strict';
 
 var Scoreboard = function(game) {
@@ -604,7 +664,7 @@ Scoreboard.prototype.update = function() {
 
 module.exports = Scoreboard;
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 'use strict';
 
 var Lava = function(game, x, y, frame) {
@@ -643,7 +703,7 @@ Lava.prototype.reset = function() {
 
 module.exports = Lava;
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 'use strict';
 
 var Lazer = function(game, x, y, frame) {
@@ -719,7 +779,7 @@ Lazer.prototype.revived = function() {
 
 module.exports = Lazer;
 
-},{}],15:[function(require,module,exports){
+},{}],16:[function(require,module,exports){
 'use strict';
 
 var Missile = require('./missile');
@@ -770,7 +830,7 @@ MeteorGroup.prototype.stop = function() {
 
 module.exports = MeteorGroup;
 
-},{"./missile":16}],16:[function(require,module,exports){
+},{"./missile":17}],17:[function(require,module,exports){
 'use strict';
 
  var _type = "";
@@ -819,7 +879,7 @@ Missile.prototype.shoot = function() {
 
 module.exports = Missile;
 
-},{}],17:[function(require,module,exports){
+},{}],18:[function(require,module,exports){
 
 'use strict';
 
@@ -838,7 +898,7 @@ Boot.prototype = {
 
 module.exports = Boot;
 
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 
 'use strict';
 function Menu() {}
@@ -926,7 +986,7 @@ Menu.prototype = {
 
 module.exports = Menu;
 
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 
 'use strict';
 var Char1 = require('../prefabs/Char1');
@@ -944,6 +1004,7 @@ var Meteor = require('../prefabs/traps/meteor');
 var FirstAid = require('../prefabs/firstAid');
 var Reward = require('../prefabs/reward');
 var RewardGroup = require('../prefabs/rewardGroup');
+var Indicator = require('../prefabs/indicator');
 
 var DEBUFFS = {
   lazerFireEvent:
@@ -1059,6 +1120,8 @@ Play.prototype = {
     this.scaleSpriteBySize(this.missileButton, SCALE_SIZE);
     this.meteorButton = this.game.add.sprite(this.game.width - 200, 0, 'buttons', 6);
     this.scaleSpriteBySize(this.meteorButton, SCALE_SIZE);
+    this.swapIndicator = new Indicator(this.game, this.game.width/2, this.game.height/3, 5);
+    this.game.add.existing(this.swapIndicator);
   },
   update: function() {
     // enable collisions between the char1 and the ground
@@ -1109,6 +1172,22 @@ Play.prototype = {
     }
 
     this.canFire();
+
+    if (this.game.input.keyboard.isDown(Phaser.Keyboard.W)) {
+      this.enemy.moveUp();
+    }
+
+    if (this.game.input.keyboard.isDown(Phaser.Keyboard.A)) {
+      this.enemy.moveLeft();
+    }
+
+    if (this.game.input.keyboard.isDown(Phaser.Keyboard.S)) {
+      this.enemy.moveDown();
+    }
+
+    if (this.game.input.keyboard.isDown(Phaser.Keyboard.D)) {
+      this.enemy.moveRight();
+    }
   },
 
   canFire: function() {
@@ -1139,6 +1218,7 @@ Play.prototype = {
     if(!this.char1.alive && !this.gameover) {
       this.instructionMusic.stop();
       this.actionMusic.play();
+      this.actionMusic.loop = true;
       this.char1.body.allowGravity = true;
       this.char1.alive = true;
       this.enemy.alive = true;
@@ -1176,7 +1256,7 @@ Play.prototype = {
     this.updateHealth('DOWN');
     this.char1.setInvincible();
     this.char1.takeDamage(enemy);
-    if (enemy instanceof Missile && enemy.key === "missile") {
+    if (enemy instanceof Missile) {
       enemy.kill();
     }
 
@@ -1304,12 +1384,16 @@ Play.prototype = {
   },
   changePlayerControl: function(){
     if (!this.gameover && (this.game.time.totalElapsedSeconds() > DEBUFFS.swapPlayerControlEvent.timer) && this.enemy.alive) {
+      this.swapIndicator.appear();
       this.swapControlSound.play();
       this.swapControlSound.volume = 2;
       DEBUFFS.swapPlayerControlEvent.isNormal = !DEBUFFS.swapPlayerControlEvent.isNormal;
       this.swapKeyListeners(DEBUFFS.swapPlayerControlEvent.isNormal);
       DEBUFFS.swapPlayerControlEvent.isNormal = !DEBUFFS.swapPlayerControlEvent.isNormal;
-      this.game.time.events.add(Phaser.Timer.SECOND*2, function(){this.swapKeyListeners(DEBUFFS.swapPlayerControlEvent.isNormal)}, this);
+      this.game.time.events.add(Phaser.Timer.SECOND*2, function(){
+        this.swapKeyListeners(DEBUFFS.swapPlayerControlEvent.isNormal);
+        this.swapIndicator.disappear();
+      }, this);
       this.swapKeyButton.filters = [this.gray];
       DEBUFFS.swapPlayerControlEvent.timer = 30 + this.game.time.totalElapsedSeconds();
     }
@@ -1353,17 +1437,6 @@ Play.prototype = {
   },
   setUpEnemyKeyListeners: function() {
     // add enemy keyboard controls
-    this.enemyUpKey = this.game.input.keyboard.addKey(Phaser.Keyboard.W);
-    this.enemyUpKey.onDown.add(this.enemy.moveUp, this.enemy);
-
-    this.enemyLeftKey = this.game.input.keyboard.addKey(Phaser.Keyboard.A);
-    this.enemyLeftKey.onDown.add(this.enemy.moveLeft, this.enemy);
-
-    this.enemyRightKey = this.game.input.keyboard.addKey(Phaser.Keyboard.D);
-    this.enemyRightKey.onDown.add(this.enemy.moveRight, this.enemy);
-
-    this.enemyDownKey = this.game.input.keyboard.addKey(Phaser.Keyboard.S);
-    this.enemyDownKey.onDown.add(this.enemy.moveDown, this.enemy);
 
     this.enemyGKey = this.game.input.keyboard.addKey(Phaser.Keyboard.FOUR);
     this.enemyGKey.onDown.add(this.generateLazer, this);
@@ -1386,7 +1459,7 @@ Play.prototype = {
 
 module.exports = Play;
 
-},{"../prefabs/Char1":2,"../prefabs/enemy":3,"../prefabs/firstAid":4,"../prefabs/ground":5,"../prefabs/pipe":6,"../prefabs/pipeGroup":7,"../prefabs/platform":8,"../prefabs/platformGroup":9,"../prefabs/reward":10,"../prefabs/rewardGroup":11,"../prefabs/scoreboard":12,"../prefabs/traps/lava":13,"../prefabs/traps/lazer":14,"../prefabs/traps/meteor":15,"../prefabs/traps/missile":16}],20:[function(require,module,exports){
+},{"../prefabs/Char1":2,"../prefabs/enemy":3,"../prefabs/firstAid":4,"../prefabs/ground":5,"../prefabs/indicator":6,"../prefabs/pipe":7,"../prefabs/pipeGroup":8,"../prefabs/platform":9,"../prefabs/platformGroup":10,"../prefabs/reward":11,"../prefabs/rewardGroup":12,"../prefabs/scoreboard":13,"../prefabs/traps/lava":14,"../prefabs/traps/lazer":15,"../prefabs/traps/meteor":16,"../prefabs/traps/missile":17}],21:[function(require,module,exports){
 
 'use strict';
 function Preload() {
@@ -1418,6 +1491,7 @@ Preload.prototype = {
     this.load.spritesheet('heart', 'assets/hearts.png', 21, 21, 1);
     this.load.spritesheet('missile', 'assets/projectiles.png', 21, 21, 21);
     this.load.spritesheet('buttons', 'assets/buttons.png', 21, 21, 8);
+    this.load.spritesheet('arrows', 'assets/dance1.png', 21, 21, 16);
 
     this.load.image('instructions', 'assets/instructions2.png');
     this.load.image('getReady', 'assets/get-ready.png');
