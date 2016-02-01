@@ -115,10 +115,10 @@ Char1.prototype.takeDamage = function(enemy) {
 
   this.health--;
 
-  this.isInvincable = true;
-  blinkingTimer = this.game.time.events.loop(Phaser.Timer.SECOND * 0.2, this.blinking, this);
-  blinkingTimer.timer.start();
+  this.isInvincible = true;
+  this.blinkingTimer = this.game.time.events.loop(Phaser.Timer.SECOND * 0.2, this.blinking, this);
   this.game.time.events.add(Phaser.Timer.SECOND * 3, this.setNotInvincible, this);
+
 };
 
 Char1.prototype.getHealth = function() {
@@ -128,7 +128,7 @@ Char1.prototype.getHealth = function() {
 Char1.prototype.gainHealth = function() {
   if (this.health < 3)
     this.health++;
-}
+};
 
 Char1.prototype.blinking = function() {
   this.tweenTint(this, 0, 0xffffff, 100);
@@ -137,7 +137,7 @@ Char1.prototype.blinking = function() {
 Char1.prototype.setNotInvincible = function() {
   console.log("inside set to not invincible");
   this.isInvincible = false;
-  blinkingTimer.timer.stop();
+  this.game.time.events.remove(this.blinkingTimer);
 };
 
 Char1.prototype.setInvincible = function() {
@@ -913,6 +913,7 @@ Menu.prototype = {
     this.background.smoothed = false;
 
     this.music = this.game.add.audio('menu_music');
+    this.music.loop = true;
     this.music.play();
 
     this.menuClick = this.game.add.audio('menu_whoosh');
@@ -1216,8 +1217,8 @@ Play.prototype = {
   startGame: function() {
     if(!this.char1.alive && !this.gameover) {
       this.instructionMusic.stop();
-      this.actionMusic.play();
       this.actionMusic.loop = true;
+      this.actionMusic.play();
       this.char1.body.allowGravity = true;
       this.char1.alive = true;
       this.enemy.alive = true;
@@ -1391,8 +1392,6 @@ Play.prototype = {
       DEBUFFS.swapPlayerControlEvent.isNormal = !DEBUFFS.swapPlayerControlEvent.isNormal;
       this.game.time.events.add(Phaser.Timer.SECOND*2, function(){
         this.swapKeyListeners(DEBUFFS.swapPlayerControlEvent.isNormal);
-      }, this);
-      this.game.time.events.add(Phaser.Timer.SECOND*2, function(){
         this.swapIndicator.disappear();
       }, this);
       this.swapKeyButton.filters = [this.gray];
@@ -1498,7 +1497,6 @@ Preload.prototype = {
     this.load.image('getReady', 'assets/get-ready.png');
 
     this.load.image('scoreboard', 'assets/scoreboard1.png');
-    this.load.spritesheet('medals', 'assets/medals.png',44, 46, 2);
     this.load.image('gameover', 'assets/gameover.png');
     this.load.image('particle', 'assets/particle.png');
     this.load.spritesheet('meteor', 'assets/meteor1.png',21,13,3);
@@ -1515,7 +1513,6 @@ Preload.prototype = {
     this.load.audio('missile_hit', 'assets/Missile_Player.wav');
     this.load.audio('jump', 'assets/flap.wav');
     this.load.audio('score', 'assets/score.wav');
-    this.load.audio('ouch', 'assets/ouch.wav');
     this.load.audio('menu_whoosh', 'assets/menu_whoosh_up.wav');
     this.load.audio('meteor_sound', 'assets/Missile_Explosion.wav');
     this.load.audio('game_over_sound', 'assets/smb_mariodie.wav');
